@@ -431,9 +431,7 @@ func raftClusterJoinNodes(t testing.T, cluster *vault.TestCluster, useStoredKeys
 		EnsureCoreSealed(t, leader)
 		leader.UnderlyingRawStorage.(*raft.RaftBackend).SetServerAddressProvider(addressProvider)
 		if useStoredKeys {
-			if err := leader.UnsealWithStoredKeys(context.Background()); err != nil {
-				t.Fatal(err)
-			}
+			cluster.UnsealCoreWithStoredKeys(t, leader)
 		} else {
 			cluster.UnsealCore(t, leader)
 		}
@@ -567,17 +565,28 @@ func VerifyRaftConfiguration(core *vault.TestClusterCore, numCores int) error {
 	return nil
 }
 
-//func debugRaftConfiguration(t testing.T, core *vault.TestClusterCore) {
-//
-//	backend := core.UnderlyingRawStorage.(*raft.RaftBackend)
-//	ctx := namespace.RootContext(context.Background())
-//	config, err := backend.GetConfiguration(ctx)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	servers := config.Servers
-//	for i, s := range servers {
-//		fmt.Printf(">>> debugRaft %d %q %t\n", i, s.NodeID, s.Leader)
-//	}
-//}
+func DebugCores(t testing.T, cluster *vault.TestCluster) {
+	for i, core := range cluster.Cores {
+		sealed := core.Core.Sealed()
+		isLeader, _, _, err := core.Core.Leader()
+		if err != nil {
+			t.Fatal(err)
+		}
+		fmt.Printf(">>> debug core %d: sealed %t, leader %t\n", i, sealed, isLeader)
+	}
+}
+
+func DebugRaftConfiguration(t testing.T, core *vault.TestClusterCore) {
+
+	backend := core.UnderlyingRawStorage.(*raft.RaftBackend)
+	ctx := namespace.RootContext(context.Background())
+	config, err := backend.GetConfiguration(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	servers := config.Servers
+	for i, s := range servers {
+		fmt.Printf(">>> debug raft %d %q %t\n", i, s.NodeID, s.Leader)
+	}
+}
